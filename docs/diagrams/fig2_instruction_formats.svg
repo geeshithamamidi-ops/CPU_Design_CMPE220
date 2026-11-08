@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="640" viewBox="0 0 860 640" font-family="'DejaVu Sans','Helvetica Neue',Arial,sans-serif">
+  <rect width="860" height="640" fill="#ffffff"/>
+  <text x="430" y="38" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">Instruction Formats — 16-bit word (Team 02 ISA v1.0)</text>
+
+  <!-- ============ helper legend of colors ============ -->
+  <g font-size="13" fill="#0f172a">
+    <rect x="60"  y="56" width="16" height="16" fill="#fde68a" stroke="#334155"/><text x="82" y="69">opcode</text>
+    <rect x="170" y="56" width="16" height="16" fill="#bfdbfe" stroke="#334155"/><text x="192" y="69">rd</text>
+    <rect x="250" y="56" width="16" height="16" fill="#bbf7d0" stroke="#334155"/><text x="272" y="69">rs</text>
+    <rect x="330" y="56" width="16" height="16" fill="#fbcfe8" stroke="#334155"/><text x="352" y="69">fn / off4</text>
+    <rect x="450" y="56" width="16" height="16" fill="#ddd6fe" stroke="#334155"/><text x="472" y="69">imm8</text>
+  </g>
+
+  <!-- ============ R-FORMAT ============ -->
+  <g transform="translate(60,100)">
+    <text x="0" y="-6" font-size="17" font-weight="700" fill="#0f172a">R-format  —  register / register  (ALU, MOV, HALT, RET, PUSH/POP)</text>
+    <!-- bit numbers -->
+    <g font-size="11" fill="#64748b" text-anchor="middle">
+      <text x="22" y="14">15</text><text x="66" y="14">14</text><text x="110" y="14">13</text><text x="154" y="14">12</text>
+      <text x="198" y="14">11</text><text x="242" y="14">10</text><text x="286" y="14">9</text><text x="330" y="14">8</text>
+      <text x="374" y="14">7</text><text x="418" y="14">6</text><text x="462" y="14">5</text><text x="506" y="14">4</text>
+      <text x="550" y="14">3</text><text x="594" y="14">2</text><text x="638" y="14">1</text><text x="682" y="14">0</text>
+    </g>
+    <!-- cells -->
+    <g stroke="#334155">
+      <rect x="0"   y="20" width="176" height="40" fill="#fde68a"/>
+      <rect x="176" y="20" width="176" height="40" fill="#bfdbfe"/>
+      <rect x="352" y="20" width="176" height="40" fill="#bbf7d0"/>
+      <rect x="528" y="20" width="176" height="40" fill="#fbcfe8"/>
+    </g>
+    <!-- cell dividers -->
+    <g stroke="#94a3b8" stroke-width="0.6">
+      <line x1="44" y1="20" x2="44" y2="60"/><line x1="88" y1="20" x2="88" y2="60"/><line x1="132" y1="20" x2="132" y2="60"/>
+      <line x1="220" y1="20" x2="220" y2="60"/><line x1="264" y1="20" x2="264" y2="60"/><line x1="308" y1="20" x2="308" y2="60"/>
+      <line x1="396" y1="20" x2="396" y2="60"/><line x1="440" y1="20" x2="440" y2="60"/><line x1="484" y1="20" x2="484" y2="60"/>
+      <line x1="572" y1="20" x2="572" y2="60"/><line x1="616" y1="20" x2="616" y2="60"/><line x1="660" y1="20" x2="660" y2="60"/>
+    </g>
+    <g font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">
+      <text x="88"  y="46">opcode (4)</text>
+      <text x="264" y="46">rd (4)</text>
+      <text x="440" y="46">rs (4)</text>
+      <text x="616" y="46">fn (4)</text>
+    </g>
+    <!-- example -->
+    <text x="0" y="86" font-size="13" fill="#334155">Example  <tspan font-weight="700">ADD R1,R2</tspan>  =  0001 0001 0010 0000  =  <tspan font-weight="700">0x1120</tspan></text>
+  </g>
+
+  <!-- ============ I-FORMAT ============ -->
+  <g transform="translate(60,290)">
+    <text x="0" y="-6" font-size="17" font-weight="700" fill="#0f172a">I-format  —  register + immediate/address  (LDI, LD, ST, ADDI, JMP, JZ, JNZ, JN, CALL)</text>
+    <g font-size="11" fill="#64748b" text-anchor="middle">
+      <text x="22" y="14">15</text><text x="66" y="14">14</text><text x="110" y="14">13</text><text x="154" y="14">12</text>
+      <text x="198" y="14">11</text><text x="242" y="14">10</text><text x="286" y="14">9</text><text x="330" y="14">8</text>
+      <text x="374" y="14">7</text><text x="418" y="14">6</text><text x="462" y="14">5</text><text x="506" y="14">4</text>
+      <text x="550" y="14">3</text><text x="594" y="14">2</text><text x="638" y="14">1</text><text x="682" y="14">0</text>
+    </g>
+    <g stroke="#334155">
+      <rect x="0"   y="20" width="176" height="40" fill="#fde68a"/>
+      <rect x="176" y="20" width="176" height="40" fill="#bfdbfe"/>
+      <rect x="352" y="20" width="352" height="40" fill="#ddd6fe"/>
+    </g>
+    <g stroke="#94a3b8" stroke-width="0.6">
+      <line x1="44" y1="20" x2="44" y2="60"/><line x1="88" y1="20" x2="88" y2="60"/><line x1="132" y1="20" x2="132" y2="60"/>
+      <line x1="220" y1="20" x2="220" y2="60"/><line x1="264" y1="20" x2="264" y2="60"/><line x1="308" y1="20" x2="308" y2="60"/>
+      <line x1="396" y1="20" x2="396" y2="60"/><line x1="440" y1="20" x2="440" y2="60"/><line x1="484" y1="20" x2="484" y2="60"/>
+      <line x1="528" y1="20" x2="528" y2="60"/><line x1="572" y1="20" x2="572" y2="60"/><line x1="616" y1="20" x2="616" y2="60"/><line x1="660" y1="20" x2="660" y2="60"/>
+    </g>
+    <g font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">
+      <text x="88"  y="46">opcode (4)</text>
+      <text x="264" y="46">rd (4)</text>
+      <text x="528" y="46">imm8 (8)</text>
+    </g>
+    <text x="0" y="86" font-size="13" fill="#334155">Example  <tspan font-weight="700">LDI R1,8</tspan>  =  0010 0001 0000 1000  =  <tspan font-weight="700">0x2108</tspan>   ·   imm8 unsigned (0–255), except <tspan font-weight="700">ADDI</tspan> signed (−128…127)</text>
+  </g>
+
+  <!-- ============ M-FORMAT ============ -->
+  <g transform="translate(60,480)">
+    <text x="0" y="-6" font-size="17" font-weight="700" fill="#0f172a">M-format  —  base register + 4-bit offset  (LDR, STR)</text>
+    <g font-size="11" fill="#64748b" text-anchor="middle">
+      <text x="22" y="14">15</text><text x="66" y="14">14</text><text x="110" y="14">13</text><text x="154" y="14">12</text>
+      <text x="198" y="14">11</text><text x="242" y="14">10</text><text x="286" y="14">9</text><text x="330" y="14">8</text>
+      <text x="374" y="14">7</text><text x="418" y="14">6</text><text x="462" y="14">5</text><text x="506" y="14">4</text>
+      <text x="550" y="14">3</text><text x="594" y="14">2</text><text x="638" y="14">1</text><text x="682" y="14">0</text>
+    </g>
+    <g stroke="#334155">
+      <rect x="0"   y="20" width="176" height="40" fill="#fde68a"/>
+      <rect x="176" y="20" width="176" height="40" fill="#bfdbfe"/>
+      <rect x="352" y="20" width="176" height="40" fill="#bbf7d0"/>
+      <rect x="528" y="20" width="176" height="40" fill="#fbcfe8"/>
+    </g>
+    <g stroke="#94a3b8" stroke-width="0.6">
+      <line x1="44" y1="20" x2="44" y2="60"/><line x1="88" y1="20" x2="88" y2="60"/><line x1="132" y1="20" x2="132" y2="60"/>
+      <line x1="220" y1="20" x2="220" y2="60"/><line x1="264" y1="20" x2="264" y2="60"/><line x1="308" y1="20" x2="308" y2="60"/>
+      <line x1="396" y1="20" x2="396" y2="60"/><line x1="440" y1="20" x2="440" y2="60"/><line x1="484" y1="20" x2="484" y2="60"/>
+      <line x1="572" y1="20" x2="572" y2="60"/><line x1="616" y1="20" x2="616" y2="60"/><line x1="660" y1="20" x2="660" y2="60"/>
+    </g>
+    <g font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">
+      <text x="88"  y="46">opcode (4)</text>
+      <text x="264" y="46">rd (4)</text>
+      <text x="440" y="46">rs/base (4)</text>
+      <text x="616" y="46">off4 (4)</text>
+    </g>
+    <text x="0" y="86" font-size="13" fill="#334155">Example  <tspan font-weight="700">LDR R2,[R5+3]</tspan>  =  0101 0010 0101 0011  =  <tspan font-weight="700">0x5253</tspan></text>
+  </g>
+
+  <text x="430" y="628" text-anchor="middle" font-size="12" fill="#64748b">Every instruction is exactly one 16-bit word.</text>
+</svg>

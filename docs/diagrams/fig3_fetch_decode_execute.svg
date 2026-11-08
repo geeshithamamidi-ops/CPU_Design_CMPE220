@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="820" height="720" viewBox="0 0 820 720" font-family="'DejaVu Sans','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 Z" fill="#334155"/>
+    </marker>
+  </defs>
+  <rect width="820" height="720" fill="#ffffff"/>
+  <text x="410" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#0f172a">Fetch – Decode – Execute Cycle (Team 02 CPU)</text>
+
+  <!-- START -->
+  <ellipse cx="410" cy="74" rx="66" ry="24" fill="#e2e8f0" stroke="#334155" stroke-width="1.5"/>
+  <text x="410" y="80" text-anchor="middle" font-size="15" font-weight="700" fill="#0f172a">START</text>
+
+  <!-- FETCH -->
+  <rect x="280" y="118" width="260" height="64" rx="6" fill="#fde68a" stroke="#334155" stroke-width="1.5"/>
+  <text x="410" y="142" text-anchor="middle" font-size="16" font-weight="700" fill="#0f172a">FETCH</text>
+  <text x="410" y="163" text-anchor="middle" font-size="12.5" fill="#334155">IR ← RAM[PC]   then   PC ← PC + 1</text>
+
+  <!-- DECODE -->
+  <rect x="280" y="214" width="260" height="64" rx="6" fill="#bfdbfe" stroke="#334155" stroke-width="1.5"/>
+  <text x="410" y="238" text-anchor="middle" font-size="16" font-weight="700" fill="#0f172a">DECODE</text>
+  <text x="410" y="259" text-anchor="middle" font-size="12.5" fill="#334155">split IR → opcode | rd | rs | fn | imm8</text>
+
+  <!-- EXECUTE container -->
+  <rect x="96" y="310" width="628" height="150" rx="8" fill="#f8fafc" stroke="#334155" stroke-width="1.5"/>
+  <text x="410" y="332" text-anchor="middle" font-size="16" font-weight="700" fill="#0f172a">EXECUTE  (by opcode class)</text>
+  <g stroke="#334155" stroke-width="1.2">
+    <rect x="112" y="344" width="142" height="80" rx="5" fill="#dcfce7"/>
+    <rect x="266" y="344" width="142" height="80" rx="5" fill="#dcfce7"/>
+    <rect x="420" y="344" width="142" height="80" rx="5" fill="#dcfce7"/>
+    <rect x="574" y="344" width="138" height="80" rx="5" fill="#dcfce7"/>
+  </g>
+  <g text-anchor="middle" fill="#0f172a">
+    <text x="183" y="368" font-size="13" font-weight="700">ALU / MOV</text>
+    <text x="183" y="388" font-size="11" fill="#334155">rd = rd ⟨fn⟩ rs</text>
+    <text x="183" y="404" font-size="11" fill="#334155">set Z N C V</text>
+
+    <text x="337" y="368" font-size="13" font-weight="700">LOAD / STORE</text>
+    <text x="337" y="388" font-size="11" fill="#334155">LD LDR / ST STR</text>
+    <text x="337" y="404" font-size="11" fill="#334155">reg ↔ RAM</text>
+
+    <text x="491" y="368" font-size="13" font-weight="700">BRANCH / CALL</text>
+    <text x="491" y="388" font-size="11" fill="#334155">JMP JZ JNZ JN</text>
+    <text x="491" y="404" font-size="11" fill="#334155">CALL / RET → set PC</text>
+
+    <text x="643" y="368" font-size="13" font-weight="700">STACK</text>
+    <text x="643" y="388" font-size="11" fill="#334155">PUSH / POP</text>
+    <text x="643" y="404" font-size="11" fill="#334155">SP-- / SP++</text>
+  </g>
+  <text x="410" y="446" text-anchor="middle" font-size="11.5" fill="#475569">→ write back result; update FLAGS, PC, SP as needed</text>
+
+  <!-- HALT? decision -->
+  <polygon points="410,496 510,548 410,600 310,548" fill="#fecaca" stroke="#334155" stroke-width="1.5"/>
+  <text x="410" y="544" text-anchor="middle" font-size="15" font-weight="700" fill="#0f172a">HALT?</text>
+  <text x="410" y="562" text-anchor="middle" font-size="11" fill="#334155">opcode = 0x0 ?</text>
+
+  <!-- STOP -->
+  <ellipse cx="410" cy="662" rx="66" ry="24" fill="#334155" stroke="#334155"/>
+  <text x="410" y="668" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">STOP</text>
+
+  <!-- arrows -->
+  <line x1="410" y1="98"  x2="410" y2="116" stroke="#334155" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="410" y1="182" x2="410" y2="212" stroke="#334155" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="410" y1="278" x2="410" y2="308" stroke="#334155" stroke-width="2" marker-end="url(#a)"/>
+  <line x1="410" y1="460" x2="410" y2="494" stroke="#334155" stroke-width="2" marker-end="url(#a)"/>
+  <!-- HALT? yes -> STOP -->
+  <line x1="410" y1="600" x2="410" y2="636" stroke="#334155" stroke-width="2" marker-end="url(#a)"/>
+  <text x="422" y="624" font-size="12" font-weight="700" fill="#16a34a">yes</text>
+
+  <!-- HALT? no -> loop back to FETCH (left side) -->
+  <path d="M310,548 L60,548 L60,150 L278,150" fill="none" stroke="#334155" stroke-width="2" marker-end="url(#a)"/>
+  <text x="150" y="140" font-size="12" font-weight="700" fill="#b45309">no — loop to next instruction</text>
+</svg>
