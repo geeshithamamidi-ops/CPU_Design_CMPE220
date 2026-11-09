@@ -1,6 +1,6 @@
-# Team 02 — Frozen ISA v1.0 (CMPE 220 CPU Design)
+# Team 02 — Finalized ISA v1.0 (CMPE 220 CPU Design)
 
-**Owner:** Saima Ashraf (ISA & CPU design) · **Status:** FROZEN Nov 8, 2026
+**Owner:** Saima Ashraf (ISA & CPU design) · **Status:** FINALIZED Nov 8, 2026
 **Reused by:** CPU Design (Nov 28) and Program Layout & Execution (Dec 5).
 
 > This is the single source of truth for `isa.h`. If anything here changes,

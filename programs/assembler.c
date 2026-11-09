@@ -1,6 +1,6 @@
 /* ============================================================================
  *  assembler.c  —  Team 02 two-pass assembler for our 16-bit ISA
- *  Owner: Saima Ashraf  (implements the frozen encoding table in isa.h)
+ *  Owner: Saima Ashraf  (implements the finalized encoding table in isa.h)
  * ----------------------------------------------------------------------------
  *  Turns assembly source into 16-bit machine words.
  *

@@ -1,7 +1,7 @@
 # Expected results — for Anupama's simulator tests (Saima's task #6)
 
 These are the authoritative values the production simulator must reproduce.
-All values verified against the frozen ISA v1.0.
+All values verified against the finalized ISA v1.0.
 
 ---
 

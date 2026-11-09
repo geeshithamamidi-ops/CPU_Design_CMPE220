@@ -1,5 +1,5 @@
 /* ============================================================================
- *  isa.h  —  Team 02 CPU, frozen ISA v1.0 (shared by assembler.c and cpu.c)
+ *  isa.h  —  Team 02 CPU, finalized ISA v1.0 (shared by assembler.c and cpu.c)
  * ----------------------------------------------------------------------------
  *  Single header of ISA constants so the assembler and the simulator can never
  *  drift apart. If the ISA changes, change it HERE first (owner: Saima).
