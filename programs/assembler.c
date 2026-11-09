@@ -1,6 +1,6 @@
 /* ============================================================================
  *  assembler.c  —  Team 02 two-pass assembler for our 16-bit ISA
- *  Owner: Saima Ashraf  (implements the frozen encoding table in isa.h)
+ *  Owner: Saima Ashraf  (implements the finalized encoding table in isa.h)
  * ----------------------------------------------------------------------------
  *  Turns assembly source into 16-bit machine words.
  *
@@ -96,6 +96,38 @@ static int imm_val(const char *t){
     return (int)strtol(t, NULL, 10);
 }
 
+/* Parse an absolute address operand: "[0x40]", "0x40", or "64".
+ * Brackets are optional (the spec writes LD/ST with them). Must be a number
+ * in range 0..255. Returns 0 on success, -1 with a message. */
+static int parse_addr(const char *t, int lineno, int *addr){
+    char tmp[32];
+    if (t[0] == '['){                                  /* strip [ ... ]      */
+        const char *end = strchr(t, ']');
+        if (!end){ fprintf(stderr, "asm: missing ']' in '%s' on line %d\n", t, lineno); return -1; }
+        int len = (int)(end - (t + 1));
+        if (len < 0 || len > 31) len = 31;
+        memcpy(tmp, t + 1, len); tmp[len] = '\0';
+    } else {
+        snprintf(tmp, sizeof tmp, "%.31s", t);
+    }
+    char *p = tmp;                                     /* trim spaces        */
+    while (*p == ' ') p++;
+    char *e = p + strlen(p);
+    while (e > p && e[-1] == ' ') *--e = '\0';
+
+    if (!is_numeric(p)){
+        fprintf(stderr, "asm: expected a numeric address, got '%s' on line %d\n", t, lineno);
+        return -1;
+    }
+    int v = imm_val(p);
+    if (v < 0 || v > 255){
+        fprintf(stderr, "asm: address %d out of range 0..255 on line %d\n", v, lineno);
+        return -1;
+    }
+    *addr = v;
+    return 0;
+}
+
 /* Parse a memory operand "[Rb+off]" or "[Rb]" into base register + offset.
  * Offset must be 0..15 (4-bit field). Returns 0 on success, -1 with a message. */
 static int parse_mem(const char *t, int lineno, int *base, int *off){
@@ -153,11 +185,25 @@ static int encode(const char *line, int lineno, uint16_t *out){
     if (!strcmp(mn, "HALT")) { *out = (OP_HALT << 12); return 0; }
     if (!strcmp(mn, "RET"))  { *out = (OP_RET  << 12); return 0; }
 
-    /* ---- one register + 8-bit immediate ---- */
-    if (!strcmp(mn, "LDI") || !strcmp(mn, "ADDI")){
+    /* ---- LDI rd, imm8 : immediate is UNSIGNED 0..255 ---- */
+    if (!strcmp(mn, "LDI")){
         int rd = getreg(a1, lineno); if (rd < 0) return -1;
-        int op = !strcmp(mn, "LDI") ? OP_LDI : OP_ADDI;
-        *out = (op << 12) | (rd << 8) | (imm_val(a2) & 0xFF); return 0;
+        int v = imm_val(a2);
+        if (v < 0 || v > 255){
+            fprintf(stderr, "asm: LDI immediate %d out of range 0..255 on line %d\n", v, lineno);
+            return -1;
+        }
+        *out = (OP_LDI << 12) | (rd << 8) | (v & 0xFF); return 0;
+    }
+    /* ---- ADDI rd, imm8 : immediate is SIGNED -128..127 ---- */
+    if (!strcmp(mn, "ADDI")){
+        int rd = getreg(a1, lineno); if (rd < 0) return -1;
+        int v = imm_val(a2);
+        if (v < -128 || v > 127){
+            fprintf(stderr, "asm: ADDI immediate %d out of range -128..127 on line %d\n", v, lineno);
+            return -1;
+        }
+        *out = (OP_ADDI << 12) | (rd << 8) | (v & 0xFF); return 0;
     }
     /* ---- MOV rd, rs ---- */
     if (!strcmp(mn, "MOV")){
@@ -171,15 +217,17 @@ static int encode(const char *line, int lineno, uint16_t *out){
         int k = !strcmp(mn, "PUSH") ? STK_PUSH : STK_POP;
         *out = (OP_STK << 12) | (rd << 8) | k; return 0;
     }
-    /* ---- LD rd, [addr8]  — absolute; address is a number ---- */
+    /* ---- LD rd, [addr8]  — address may be [0x40] or bare 0x40 ---- */
     if (!strcmp(mn, "LD")){
         int rd = getreg(a1, lineno); if (rd < 0) return -1;
-        *out = (OP_LD << 12) | (rd << 8) | (imm_val(a2) & 0xFF); return 0;
+        int ad; if (parse_addr(a2, lineno, &ad) != 0) return -1;
+        *out = (OP_LD << 12) | (rd << 8) | (ad & 0xFF); return 0;
     }
-    /* ---- ST [addr8], rs  — address in a1, source register in a2 ---- */
+    /* ---- ST [addr8], rs  — address in a1 ([0x40] or 0x40), source reg in a2 ---- */
     if (!strcmp(mn, "ST")){
         int rs = getreg(a2, lineno); if (rs < 0) return -1;
-        *out = (OP_ST << 12) | (rs << 8) | (imm_val(a1) & 0xFF); return 0;
+        int ad; if (parse_addr(a1, lineno, &ad) != 0) return -1;
+        *out = (OP_ST << 12) | (rs << 8) | (ad & 0xFF); return 0;
     }
     /* ---- LDR rd, [rs+off4]  (M-format) ---- */
     if (!strcmp(mn, "LDR")){
@@ -242,6 +290,10 @@ int assemble(const char *path, uint16_t *ram, int ram_words){
             *colon = '\0';
             int ln = (int)strlen(buf);             /* trim space before ':'  */
             while (ln > 0 && isspace((unsigned char)buf[ln - 1])) buf[--ln] = '\0';
+            if (find_sym(buf) >= 0){               /* reject a repeated label */
+                fprintf(stderr, "asm: label '%s' defined more than once\n", buf);
+                fclose(f); return -1;
+            }
             if (g_nsyms < MAXLINES){
                 snprintf(g_syms[g_nsyms].label, MAXLABEL, "%.*s", MAXLABEL - 1, buf);
                 g_syms[g_nsyms].addr = addr;
