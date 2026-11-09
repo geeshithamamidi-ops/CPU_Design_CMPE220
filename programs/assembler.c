@@ -1,6 +1,6 @@
 /* ============================================================================
  *  assembler.c  —  Team 02 two-pass assembler for our 16-bit ISA
- *  Owner: Saima Ashraf  (implements the finalized encoding table in isa.h)
+ *  Owner: Saima Ashraf  (implements the frozen encoding table in isa.h)
  * ----------------------------------------------------------------------------
  *  Turns assembly source into 16-bit machine words.
  *
@@ -12,7 +12,13 @@
  *    - labels end with ':'                      e.g.  loop:  ADDI R1, -1
  *    - comments start with ';'                        LDI R0, 1   ; result
  *    - immediates: decimal, -decimal, or 0xHEX
+ *    - memory operands use brackets           e.g.  LDR R2, [R5+3]
+ *                                                   STR [R5+3], R2
  *    - jump/CALL target may be a label or a number
+ *
+ *  Error checking (reports the line and returns -1, assembles nothing):
+ *    - bad register (not R0..R15)      - unknown label      - bad ALU fn
+ *    - offset outside 0..15            - malformed [reg+off] - unknown mnemonic
  *
  *  Two ways to use it
  *    1. As a library:  #include "assembler.h";  assemble(path, ram, RAM_WORDS);
@@ -39,11 +45,27 @@ static char g_line[MAXLINES][96]; static int g_nlines;
 
 /* ---------- small helpers -------------------------------------------------*/
 
-/* "R5" -> 5 ; anything else -> -1 */
-static int reg_num(const char *t){
-    if ((t[0] == 'R' || t[0] == 'r') && isdigit((unsigned char)t[1]))
-        return atoi(t + 1);
+/* Validate a register token "R0".."R15": must be 'R' followed by digits only,
+ * in range 0..15. Returns the number, or -1 with an error message. */
+static int getreg(const char *t, int lineno){
+    if (t[0] == 'R' || t[0] == 'r'){
+        const char *p = t + 1;
+        if (isdigit((unsigned char)*p)){
+            while (isdigit((unsigned char)*p)) p++;     /* consume all digits */
+            if (*p == '\0'){                            /* no trailing junk   */
+                int r = atoi(t + 1);
+                if (r >= 0 && r < NREG) return r;
+            }
+        }
+    }
+    fprintf(stderr, "asm: bad register '%s' on line %d\n", t, lineno);
     return -1;
+}
+
+/* Is this token a number (decimal, -decimal, or 0xHEX) rather than a label? */
+static int is_numeric(const char *t){
+    if (*t == '-' || *t == '+') t++;
+    return isdigit((unsigned char)*t);
 }
 
 /* look up a previously defined label; -1 if not found */
@@ -74,6 +96,42 @@ static int imm_val(const char *t){
     return (int)strtol(t, NULL, 10);
 }
 
+/* Parse a memory operand "[Rb+off]" or "[Rb]" into base register + offset.
+ * Offset must be 0..15 (4-bit field). Returns 0 on success, -1 with a message. */
+static int parse_mem(const char *t, int lineno, int *base, int *off){
+    if (t[0] != '['){
+        fprintf(stderr, "asm: expected [reg+off], got '%s' on line %d\n", t, lineno);
+        return -1;
+    }
+    const char *end = strchr(t, ']');
+    if (!end){
+        fprintf(stderr, "asm: missing ']' in '%s' on line %d\n", t, lineno);
+        return -1;
+    }
+    char inner[32];
+    int len = (int)(end - (t + 1));
+    if (len < 0 || len > 31) len = 31;
+    memcpy(inner, t + 1, len); inner[len] = '\0';      /* text between [ ]    */
+
+    int o = 0;
+    char *plus = strchr(inner, '+');
+    if (plus){ *plus = '\0'; o = (int)strtol(plus + 1, NULL, 0); }  /* +offset */
+
+    char *rp = inner;                                  /* trim spaces around reg */
+    while (*rp == ' ') rp++;
+    char *re = rp + strlen(rp);
+    while (re > rp && re[-1] == ' ') *--re = '\0';
+
+    int b = getreg(rp, lineno);
+    if (b < 0) return -1;
+    if (o < 0 || o > 15){
+        fprintf(stderr, "asm: offset %d out of range 0..15 on line %d\n", o, lineno);
+        return -1;
+    }
+    *base = b; *off = o;
+    return 0;
+}
+
 /* strip ';' comment and surrounding whitespace; return 1 if text remains */
 static int clean(char *s){
     char *c = strchr(s, ';'); if (c) *c = '\0';
@@ -91,34 +149,60 @@ static int encode(const char *line, int lineno, uint16_t *out){
     int n = sscanf(line, "%15s %31[^,], %31[^,], %31s", mn, a1, a2, a3);
     if (n < 1) { fprintf(stderr, "asm: empty line %d\n", lineno); return -1; }
 
-    int rd = reg_num(a1) & 0xF;
-    int rs = reg_num(a2) & 0xF;
-
-    /* zero / one-operand and simple forms */
+    /* ---- zero-operand ---- */
     if (!strcmp(mn, "HALT")) { *out = (OP_HALT << 12); return 0; }
     if (!strcmp(mn, "RET"))  { *out = (OP_RET  << 12); return 0; }
-    if (!strcmp(mn, "LDI"))  { *out = (OP_LDI  << 12) | (rd << 8) | (imm_val(a2) & 0xFF); return 0; }
-    if (!strcmp(mn, "ADDI")) { *out = (OP_ADDI << 12) | (rd << 8) | (imm_val(a2) & 0xFF); return 0; }
-    if (!strcmp(mn, "MOV"))  { *out = (OP_MOV  << 12) | (rd << 8) | (rs << 4); return 0; }
-    if (!strcmp(mn, "PUSH")) { *out = (OP_STK  << 12) | (rd << 8) | STK_PUSH; return 0; }
-    if (!strcmp(mn, "POP"))  { *out = (OP_STK  << 12) | (rd << 8) | STK_POP;  return 0; }
 
-    /* LD rd,[addr]  — address is a bare immediate in a2 */
-    if (!strcmp(mn, "LD"))   { *out = (OP_LD << 12) | (rd << 8) | (imm_val(a2) & 0xFF); return 0; }
-    /* ST addr,rs    — address in a1, source register in a2 */
-    if (!strcmp(mn, "ST"))   { *out = (OP_ST << 12) | ((reg_num(a2) & 0xF) << 8) | (imm_val(a1) & 0xFF); return 0; }
-    /* LDR rd,[rs+off4] */
-    if (!strcmp(mn, "LDR"))  { *out = (OP_LDR << 12) | (rd << 8) | (rs << 4) | (imm_val(a3) & 0xF); return 0; }
-    /* STR [rs+off4],rd — base in a2, offset in a3 would reorder; here STR rs,off,rd */
-    if (!strcmp(mn, "STR"))  { *out = (OP_STR << 12) | ((reg_num(a3) & 0xF) << 8) | (rs << 4) | (imm_val(a2) & 0xF); return 0; }
-    /* ALU rd,rs,FN */
+    /* ---- one register + 8-bit immediate ---- */
+    if (!strcmp(mn, "LDI") || !strcmp(mn, "ADDI")){
+        int rd = getreg(a1, lineno); if (rd < 0) return -1;
+        int op = !strcmp(mn, "LDI") ? OP_LDI : OP_ADDI;
+        *out = (op << 12) | (rd << 8) | (imm_val(a2) & 0xFF); return 0;
+    }
+    /* ---- MOV rd, rs ---- */
+    if (!strcmp(mn, "MOV")){
+        int rd = getreg(a1, lineno), rs = getreg(a2, lineno);
+        if (rd < 0 || rs < 0) return -1;
+        *out = (OP_MOV << 12) | (rd << 8) | (rs << 4); return 0;
+    }
+    /* ---- PUSH / POP rd ---- */
+    if (!strcmp(mn, "PUSH") || !strcmp(mn, "POP")){
+        int rd = getreg(a1, lineno); if (rd < 0) return -1;
+        int k = !strcmp(mn, "PUSH") ? STK_PUSH : STK_POP;
+        *out = (OP_STK << 12) | (rd << 8) | k; return 0;
+    }
+    /* ---- LD rd, [addr8]  — absolute; address is a number ---- */
+    if (!strcmp(mn, "LD")){
+        int rd = getreg(a1, lineno); if (rd < 0) return -1;
+        *out = (OP_LD << 12) | (rd << 8) | (imm_val(a2) & 0xFF); return 0;
+    }
+    /* ---- ST [addr8], rs  — address in a1, source register in a2 ---- */
+    if (!strcmp(mn, "ST")){
+        int rs = getreg(a2, lineno); if (rs < 0) return -1;
+        *out = (OP_ST << 12) | (rs << 8) | (imm_val(a1) & 0xFF); return 0;
+    }
+    /* ---- LDR rd, [rs+off4]  (M-format) ---- */
+    if (!strcmp(mn, "LDR")){
+        int rd = getreg(a1, lineno); if (rd < 0) return -1;
+        int base, off; if (parse_mem(a2, lineno, &base, &off) != 0) return -1;
+        *out = (OP_LDR << 12) | (rd << 8) | (base << 4) | (off & 0xF); return 0;
+    }
+    /* ---- STR [rs+off4], rd  (M-format): rd field = data reg, rs field = base ---- */
+    if (!strcmp(mn, "STR")){
+        int base, off; if (parse_mem(a1, lineno, &base, &off) != 0) return -1;
+        int rd = getreg(a2, lineno); if (rd < 0) return -1;
+        *out = (OP_STR << 12) | (rd << 8) | (base << 4) | (off & 0xF); return 0;
+    }
+    /* ---- ALU rd, rs, FN ---- */
     if (!strcmp(mn, "ALU")){
+        int rd = getreg(a1, lineno), rs = getreg(a2, lineno);
+        if (rd < 0 || rs < 0) return -1;
         int fn = alu_fn(a3);
         if (fn < 0) { fprintf(stderr, "asm: bad ALU fn '%s' on line %d\n", a3, lineno); return -1; }
         *out = (OP_ALU << 12) | (rd << 8) | (rs << 4) | (fn & 0xF); return 0;
     }
 
-    /* jumps / call : target is a label (resolved) or a numeric address in a1 */
+    /* ---- jumps / CALL : target is a label (must exist) or a numeric address ---- */
     int op = -1;
     if      (!strcmp(mn, "JMP"))  op = OP_JMP;
     else if (!strcmp(mn, "JZ"))   op = OP_JZ;
@@ -126,8 +210,13 @@ static int encode(const char *line, int lineno, uint16_t *out){
     else if (!strcmp(mn, "JN"))   op = OP_JN;
     else if (!strcmp(mn, "CALL")) op = OP_CALL;
     if (op >= 0){
-        int t = find_sym(a1);
-        if (t < 0) t = imm_val(a1);
+        int t;
+        if (is_numeric(a1)){
+            t = imm_val(a1);
+        } else {
+            t = find_sym(a1);                           /* must be a real label */
+            if (t < 0){ fprintf(stderr, "asm: unknown label '%s' on line %d\n", a1, lineno); return -1; }
+        }
         *out = (uint16_t)((op << 12) | (t & 0xFF));
         return 0;
     }
@@ -151,17 +240,19 @@ int assemble(const char *path, uint16_t *ram, int ram_words){
         char *colon = strchr(buf, ':');
         if (colon){                                /* a label is defined     */
             *colon = '\0';
+            int ln = (int)strlen(buf);             /* trim space before ':'  */
+            while (ln > 0 && isspace((unsigned char)buf[ln - 1])) buf[--ln] = '\0';
             if (g_nsyms < MAXLINES){
-                strncpy(g_syms[g_nsyms].label, buf, MAXLABEL - 1);
+                snprintf(g_syms[g_nsyms].label, MAXLABEL, "%.*s", MAXLABEL - 1, buf);
                 g_syms[g_nsyms].addr = addr;
                 g_nsyms++;
             }
             char *rest = colon + 1;                 /* code after the label?  */
             if (!clean(rest)) continue;             /* label-only line        */
-            strncpy(g_line[g_nlines++], rest, 95);
+            snprintf(g_line[g_nlines++], sizeof g_line[0], "%.*s", (int)sizeof g_line[0] - 1, rest);
             addr++;
         } else {
-            strncpy(g_line[g_nlines++], buf, 95);
+            snprintf(g_line[g_nlines++], sizeof g_line[0], "%.*s", (int)sizeof g_line[0] - 1, buf);
             addr++;
         }
     }
