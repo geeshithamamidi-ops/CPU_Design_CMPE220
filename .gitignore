@@ -1,0 +1,6 @@
+cpu
+test_cpu
+*.exe
+*.o
+*.tmp.asm
+.DS_Store
