@@ -109,13 +109,42 @@ Example: `ADDI R1, -1` encodes `imm8 = 0xFF`.
 
 | Assembly | opcode | rd | rs / imm8 | fn | Binary | Hex |
 |----------|--------|----|-----------|----|--------|-----|
-| `ADD R1, R2`  | 0001 | 0001 | 0010 | 0000 | `0001 0001 0010 0000` | `0x1120` |
+| `ALU R1, R2, ADD` | 0001 | 0001 | 0010 | 0000 | `0001 0001 0010 0000` | `0x1120` |
 | `LDI R1, 8`   | 0010 | 0001 | `0000 1000` | — | `0010 0001 0000 1000` | `0x2108` |
 | `ADDI R1, -1` | 1000 | 0001 | `1111 1111` | — | `1000 0001 1111 1111` | `0x81FF` |
-| `MUL R0, R1`  | 0001 | 0000 | 0001 | 0010 | `0001 0000 0001 0010` | `0x1012` |
-| `CMP R1, R3`  | 0001 | 0001 | 0011 | 1001 | `0001 0001 0011 1001` | `0x1139` |
+| `ALU R0, R1, MUL` | 0001 | 0000 | 0001 | 0010 | `0001 0000 0001 0010` | `0x1012` |
+| `ALU R1, R3, CMP` | 0001 | 0001 | 0011 | 1001 | `0001 0001 0011 1001` | `0x1139` |
 | `JNZ 0x03`    | 1011 | 0000 | `0000 0011` | — | `1011 0000 0000 0011` | `0xB003` |
 | `ST 0x40, R0` | 0100 | 0000 | `0100 0000` | — | `0100 0000 0100 0000` | `0x4040` |
+| `LDR R2, [R5+3]` | 0101 | 0010 | 0101 | 0011 | `0101 0010 0101 0011` | `0x5253` |
+| `STR [R5+3], R2` | 0110 | 0010 | 0101 | 0011 | `0110 0010 0101 0011` | `0x6253` |
 | `PUSH R1`     | 1111 | 0001 | 0000 | 0000 | `1111 0001 0000 0000` | `0xF100` |
 | `POP R1`      | 1111 | 0001 | 0000 | 0001 | `1111 0001 0000 0001` | `0xF101` |
 | `HALT`        | 0000 | 0000 | 0000 | 0000 | `0000 0000 0000 0000` | `0x0000` |
+
+---
+
+## 6. Assembler syntax (`programs/assembler.c`)
+
+| Rule | Form |
+|------|------|
+| Comment | `; text` |
+| Label | `loop:` (names the address of the next instruction) |
+| Constant / data address | `.equ result, 0x40` (emits no word) |
+| Immediates | decimal, negative decimal, or `0xHEX` |
+| Absolute memory | `LD R1, [0x40]` · `ST [0x40], R0` · brackets optional · a `.equ` name or label may replace the number: `ST [result], R0` |
+| Indexed memory | `LDR R2, [R5+3]` · `STR [R5+3], R2` · offset 0–15, `[R5]` means offset 0 |
+| ALU | `ALU rd, rs, FN` with FN = ADD SUB MUL DIV AND OR NOT SHL SHR CMP |
+| Jump / call target | label or number: `JNZ loop` · `CALL fact` |
+
+### Checked at assembly time (error message with line number, exit code 1)
+
+| Check | Limit |
+|-------|-------|
+| Register | `R0`–`R15` only |
+| `LDI` immediate | 0 … 255 |
+| `ADDI` immediate | −128 … 127 |
+| Absolute address | 0 … 255 |
+| `LDR`/`STR` offset | 0 … 15 |
+| Labels / `.equ` names | must exist; defining one twice is an error |
+| ALU function, mnemonic | must be a valid name |

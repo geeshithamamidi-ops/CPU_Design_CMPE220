@@ -15,6 +15,9 @@
  *    - memory operands use brackets           e.g.  LDR R2, [R5+3]
  *                                                   STR [R5+3], R2
  *    - jump/CALL target may be a label or a number
+ *    - .equ NAME, value  names an address, then LD/ST can use it:
+ *                                .equ result, 0x40
+ *                                ST   [result], R0
  *
  *  Error checking (reports the line and returns -1, assembles nothing):
  *    - bad register (not R0..R15)      - unknown label      - bad ALU fn
@@ -115,11 +118,16 @@ static int parse_addr(const char *t, int lineno, int *addr){
     char *e = p + strlen(p);
     while (e > p && e[-1] == ' ') *--e = '\0';
 
-    if (!is_numeric(p)){
-        fprintf(stderr, "asm: expected a numeric address, got '%s' on line %d\n", t, lineno);
-        return -1;
+    int v;
+    if (is_numeric(p)){
+        v = imm_val(p);                                /* plain number       */
+    } else {
+        v = find_sym(p);                               /* name from .equ/label */
+        if (v < 0){
+            fprintf(stderr, "asm: unknown label '%s' on line %d\n", p, lineno);
+            return -1;
+        }
     }
-    int v = imm_val(p);
     if (v < 0 || v > 255){
         fprintf(stderr, "asm: address %d out of range 0..255 on line %d\n", v, lineno);
         return -1;
@@ -285,6 +293,26 @@ int assemble(const char *path, uint16_t *ram, int ram_words){
     int addr = 0;
     while (fgets(buf, sizeof buf, f)){
         if (!clean(buf)) continue;                 /* blank / comment-only   */
+
+        /* .equ NAME, value  -> names an address/constant; emits no word */
+        if (!strncmp(buf, ".equ", 4) && isspace((unsigned char)buf[4])){
+            char name[MAXLABEL], val[32];
+            if (sscanf(buf + 4, " %31[^, ] , %31s", name, val) != 2 || !is_numeric(val)){
+                fprintf(stderr, "asm: bad .equ (use: .equ NAME, value): '%s'\n", buf);
+                fclose(f); return -1;
+            }
+            if (find_sym(name) >= 0){
+                fprintf(stderr, "asm: label '%s' defined more than once\n", name);
+                fclose(f); return -1;
+            }
+            if (g_nsyms < MAXLINES){
+                snprintf(g_syms[g_nsyms].label, MAXLABEL, "%.*s", MAXLABEL - 1, name);
+                g_syms[g_nsyms].addr = imm_val(val);
+                g_nsyms++;
+            }
+            continue;
+        }
+
         char *colon = strchr(buf, ':');
         if (colon){                                /* a label is defined     */
             *colon = '\0';
