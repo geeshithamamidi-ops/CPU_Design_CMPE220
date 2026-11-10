@@ -45,6 +45,7 @@
 typedef struct { char label[MAXLABEL]; int addr; } Sym;
 static Sym  g_syms[MAXLINES];  static int g_nsyms;
 static char g_line[MAXLINES][96]; static int g_nlines;
+static int  g_srcline[MAXLINES];    /* real source line number of each kept line */
 
 /* ---------- small helpers -------------------------------------------------*/
 
@@ -291,18 +292,24 @@ int assemble(const char *path, uint16_t *ram, int ram_words){
 
     /* ---- pass 1: collect labels and keep real instruction lines ---- */
     int addr = 0;
+    int srcno = 0;                                 /* real line number in the file */
     while (fgets(buf, sizeof buf, f)){
+        srcno++;                                   /* counts EVERY line      */
         if (!clean(buf)) continue;                 /* blank / comment-only   */
+        if (g_nlines >= MAXLINES - 1){
+            fprintf(stderr, "asm: too many lines (max %d) at line %d\n", MAXLINES - 1, srcno);
+            fclose(f); return -1;
+        }
 
         /* .equ NAME, value  -> names an address/constant; emits no word */
         if (!strncmp(buf, ".equ", 4) && isspace((unsigned char)buf[4])){
             char name[MAXLABEL], val[32];
             if (sscanf(buf + 4, " %31[^, ] , %31s", name, val) != 2 || !is_numeric(val)){
-                fprintf(stderr, "asm: bad .equ (use: .equ NAME, value): '%s'\n", buf);
+                fprintf(stderr, "asm: bad .equ (use: .equ NAME, value) on line %d\n", srcno);
                 fclose(f); return -1;
             }
             if (find_sym(name) >= 0){
-                fprintf(stderr, "asm: label '%s' defined more than once\n", name);
+                fprintf(stderr, "asm: label '%s' defined more than once on line %d\n", name, srcno);
                 fclose(f); return -1;
             }
             if (g_nsyms < MAXLINES){
@@ -319,7 +326,7 @@ int assemble(const char *path, uint16_t *ram, int ram_words){
             int ln = (int)strlen(buf);             /* trim space before ':'  */
             while (ln > 0 && isspace((unsigned char)buf[ln - 1])) buf[--ln] = '\0';
             if (find_sym(buf) >= 0){               /* reject a repeated label */
-                fprintf(stderr, "asm: label '%s' defined more than once\n", buf);
+                fprintf(stderr, "asm: label '%s' defined more than once on line %d\n", buf, srcno);
                 fclose(f); return -1;
             }
             if (g_nsyms < MAXLINES){
@@ -329,9 +336,11 @@ int assemble(const char *path, uint16_t *ram, int ram_words){
             }
             char *rest = colon + 1;                 /* code after the label?  */
             if (!clean(rest)) continue;             /* label-only line        */
+            g_srcline[g_nlines] = srcno;
             snprintf(g_line[g_nlines++], sizeof g_line[0], "%.*s", (int)sizeof g_line[0] - 1, rest);
             addr++;
         } else {
+            g_srcline[g_nlines] = srcno;
             snprintf(g_line[g_nlines++], sizeof g_line[0], "%.*s", (int)sizeof g_line[0] - 1, buf);
             addr++;
         }
@@ -346,7 +355,7 @@ int assemble(const char *path, uint16_t *ram, int ram_words){
     /* ---- pass 2: encode every kept line ---- */
     for (int i = 0; i < g_nlines; i++){
         uint16_t word;
-        if (encode(g_line[i], i + 1, &word) != 0) return -1;
+        if (encode(g_line[i], g_srcline[i], &word) != 0) return -1;
         ram[i] = word;
     }
     return g_nlines;
