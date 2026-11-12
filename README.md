@@ -45,14 +45,18 @@ Saved traces of both programs are in [`output/`](output/).
      Addr  Seg    Hex     Binary               Contents
  PC> 0x04  text   0x81FF  1000 0001 1111 1111  ADDI R1, -1
      0x40  data   0x9D80  1001 1101 1000 0000  40320  (signed -25216)  *
+ R0 =0008  R1 =0008  R2 =0007* R3 =0000 ...
+ PC=0x05  IR=0x82FF  SP=0xFF  FLAGS: Z=0  N=0  C=1* V=0
 ```
 
 | Mark | Meaning |
 | --- | --- |
 | `PC>` | Next instruction to be fetched |
 | `SP>` | Top of the stack (most recently pushed item) |
-| `*` | Cell changed by the instruction just executed |
+| `*` | Cell, register, SP or flag changed by the instruction just executed |
 | Contents | Text segment: decoded instruction · Data segment: value |
+
+Each trace starts with a short legend explaining these marks.
 
 Below each memory block: registers R0–R15 (hex), PC, IR, SP and the flags Z, N, C, V.
 
