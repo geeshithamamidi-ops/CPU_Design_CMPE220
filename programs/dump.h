@@ -6,7 +6,8 @@
  *  The RAM block shown is: the program's text words, the data cells it
  *  reads or writes, and the stack items currently pushed.
  *    PC>  next instruction to fetch      SP>  top of stack
- *    *    cell changed by the instruction just executed
+ *    *    RAM cell, register, SP or flag changed by the instruction just
+ *         executed (registers are compared with the previous printout)
  * ==========================================================================*/
 #ifndef DUMP_H
 #define DUMP_H
